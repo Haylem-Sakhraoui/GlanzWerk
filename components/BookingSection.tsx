@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabaseBrowser } from '../lib/supabaseClient'
+import { useLanguage } from './LanguageProvider'
 
 type CarType = 'sedan' | 'suv' | 'electric' | 'luxury' | 'bus'
 
@@ -17,20 +18,21 @@ type BookingState = {
   carType: CarType
   brandModel: string
   pickupLocation: string
-  date: string
-  time: string
+  pickupLat: number | null
+  pickupLng: number | null
   washTypeId: string
 }
 
 export function BookingSection() {
+  const { language } = useLanguage()
   const [booking, setBooking] = useState<BookingState>({
     name: '',
     phone: '',
     carType: 'sedan',
     brandModel: '',
     pickupLocation: '',
-    date: '',
-    time: '',
+    pickupLat: null,
+    pickupLng: null,
     washTypeId: '',
   })
   const [washTypes, setWashTypes] = useState<WashType[]>([])
@@ -38,6 +40,12 @@ export function BookingSection() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [isLocating, setIsLocating] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [locationSuggestions, setLocationSuggestions] = useState<
+    { id: string; label: string; placeName: string; latitude: number; longitude: number }[]
+  >([])
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -89,20 +97,129 @@ export function BookingSection() {
     return 'CAR'
   }
 
+  async function fetchLocationSuggestions(query: string) {
+    const trimmed = query.trim()
+
+    if (trimmed.length < 3) {
+      setLocationSuggestions([])
+      return
+    }
+
+    setIsFetchingSuggestions(true)
+
+    try {
+      const url = `/api/places/autocomplete?input=${encodeURIComponent(trimmed)}`
+      const response = await fetch(url)
+      if (!response.ok) {
+        setLocationError('Unable to fetch address suggestions.')
+        setLocationSuggestions([])
+        return
+      }
+
+      const json = await response.json()
+
+      if (json.status && json.status !== 'OK') {
+        if (json.error_message) {
+          setLocationError(json.error_message)
+        } else {
+          setLocationError('Address suggestions are currently unavailable.')
+        }
+        setLocationSuggestions([])
+        return
+      }
+
+      const predictions = Array.isArray(json.predictions) ? json.predictions : []
+
+      const items = predictions.map((prediction: any) => ({
+        id: String(prediction.place_id),
+        label: String(
+          prediction.structured_formatting?.main_text ?? prediction.description,
+        ),
+        placeName: String(prediction.description),
+        latitude: 0,
+        longitude: 0,
+      }))
+
+      setLocationSuggestions(items)
+      setLocationError(null)
+    } catch (error) {
+      console.error('Address suggestions error', error)
+      setLocationError('Address suggestions are currently unavailable.')
+      setLocationSuggestions([])
+    } finally {
+      setIsFetchingSuggestions(false)
+    }
+  }
+
+  function handleSelectSuggestion(item: {
+    id: string
+    label: string
+    placeName: string
+    latitude: number
+    longitude: number
+  }) {
+    handleChange('pickupLocation', item.placeName)
+    handleChange('pickupLat', item.latitude)
+    handleChange('pickupLng', item.longitude)
+    setLocationSuggestions([])
+    setLocationError(null)
+  }
+
+  function handleUseCurrentLocation() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationError('Location is not supported on this device.')
+      return
+    }
+
+    setIsLocating(true)
+    setLocationError(null)
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        handleChange('pickupLat', latitude)
+        handleChange('pickupLng', longitude)
+        handleChange(
+          'pickupLocation',
+          `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+        )
+
+        try {
+          const url = `/api/places/reverse-geocode?lat=${encodeURIComponent(
+            String(latitude),
+          )}&lng=${encodeURIComponent(String(longitude))}`
+          const response = await fetch(url)
+          if (response.ok) {
+            const json = await response.json()
+            if (
+              json.status === 'OK' &&
+              Array.isArray(json.results) &&
+              json.results[0]?.formatted_address
+            ) {
+              handleChange('pickupLocation', String(json.results[0].formatted_address))
+            }
+          }
+        } catch (error) {
+          console.error('Reverse geocoding error', error)
+        } finally {
+          setIsLocating(false)
+        }
+      },
+      (error) => {
+        setIsLocating(false)
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationError('Location permission was denied.')
+        } else {
+          setLocationError('Unable to detect your current location.')
+        }
+      },
+    )
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setSuccessMessage(null)
     setErrorMessage(null)
-
-    if (!userId) {
-      setErrorMessage('Please create an account or log in before booking.')
-      return
-    }
-
-    if (!booking.date || !booking.time) {
-      setErrorMessage('Please select a preferred date and time.')
-      return
-    }
 
     if (!booking.washTypeId) {
       setErrorMessage('Please select a service type.')
@@ -112,8 +229,6 @@ export function BookingSection() {
     setLoading(true)
 
     try {
-      const scheduledAt = new Date(`${booking.date}T${booking.time}`)
-
       const notes = [
         `Car type: ${booking.carType}`,
         `Brand/model: ${booking.brandModel}`,
@@ -121,32 +236,38 @@ export function BookingSection() {
         `Promotion: ${promotionText}`,
       ].join(' | ')
 
-      const preferredLanguage = 'en'
+      const preferredLanguage = language
 
-      const { error: profileError } = await supabaseBrowser
-        .from('pcd_customers')
-        .upsert(
-          {
-            user_id: userId,
-            full_name: booking.name,
-            phone: booking.phone,
-            preferred_language: preferredLanguage,
-          },
-          {
-            onConflict: 'user_id',
-          },
-        )
+      if (userId) {
+        const { error: profileError } = await supabaseBrowser
+          .from('pcd_customers')
+          .upsert(
+            {
+              user_id: userId,
+              full_name: booking.name,
+              phone: booking.phone,
+              preferred_language: preferredLanguage,
+            },
+            {
+              onConflict: 'user_id',
+            },
+          )
 
-      if (profileError) {
-        setErrorMessage(profileError.message)
-        return
+        if (profileError) {
+          setErrorMessage(profileError.message)
+          return
+        }
       }
 
       const { error: appointmentError } = await supabaseBrowser.from('pcd_appointments').insert({
         customer_id: userId,
         wash_type_id: booking.washTypeId,
         vehicle_category: getVehicleCategory(booking.carType),
-        scheduled_at: scheduledAt.toISOString(),
+        scheduled_at: null,
+        status: 'pending',
+        pickup_address: booking.pickupLocation,
+        pickup_latitude: booking.pickupLat,
+        pickup_longitude: booking.pickupLng,
         notes,
       })
 
@@ -155,13 +276,17 @@ export function BookingSection() {
         return
       }
 
-      setSuccessMessage('Booking received. We will confirm your appointment shortly.')
+      setSuccessMessage(
+        language === 'en'
+          ? 'Booking received. We will confirm your appointment time shortly.'
+          : 'Buchung eingegangen. Wir bestätigen Ihren Termin in Kürze.',
+      )
       setBooking((previous) => ({
         ...previous,
         brandModel: '',
         pickupLocation: '',
-        date: '',
-        time: '',
+        pickupLat: null,
+        pickupLng: null,
       }))
     } catch (error) {
       setErrorMessage('Something went wrong. Please try again.')
@@ -176,13 +301,14 @@ export function BookingSection() {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 items-start">
           <div>
             <h2 className="font-league text-[30px] md:text-[36px] uppercase text-text-light mb-2">
-              Book your cleaning in under a minute
+              {language === 'en'
+                ? 'Book your cleaning in under a minute'
+                : 'Buchen Sie Ihre Reinigung in unter einer Minute'}
             </h2>
             <p className="text-sm md:text-base text-text-muted mb-4 max-w-xl">
-              Choose your car type, tell us where to pick it up, and select the best time for you. We handle the rest.
-            </p>
-            <p className="text-xs text-text-muted mb-6">
-              Wählen Sie Ihr Fahrzeug, Ihren Abholort und Ihre Wunschzeit. Wir kümmern uns um den Rest.
+              {language === 'en'
+                ? 'Choose your car type and pickup location. We will review your request and assign the best available time.'
+                : 'Wählen Sie Ihr Fahrzeug und Ihren Abholort. Wir prüfen Ihre Anfrage und schlagen Ihnen die beste verfügbare Zeit vor.'}
             </p>
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -248,34 +374,46 @@ export function BookingSection() {
                   type="text"
                   required
                   value={booking.pickupLocation}
-                  onChange={(event) => handleChange('pickupLocation', event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    handleChange('pickupLocation', value)
+                    setLocationError(null)
+                    fetchLocationSuggestions(value)
+                  }}
                   className="w-full bg-black/40 border border-white/20 px-3 py-2 text-sm text-text-light outline-none focus:border-accent-teal"
                   placeholder="Street, house number, city"
                 />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs text-text-muted uppercase tracking-[0.18em]">
-                  Preferred date
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={booking.date}
-                  onChange={(event) => handleChange('date', event.target.value)}
-                  className="w-full bg-black/40 border border-white/20 px-3 py-2 text-sm text-text-light outline-none focus:border-accent-teal"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs text-text-muted uppercase tracking-[0.18em]">
-                  Preferred time
-                </label>
-                <input
-                  type="time"
-                  required
-                  value={booking.time}
-                  onChange={(event) => handleChange('time', event.target.value)}
-                  className="w-full bg-black/40 border border-white/20 px-3 py-2 text-sm text-text-light outline-none focus:border-accent-teal"
-                />
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    disabled={isLocating}
+                    onClick={handleUseCurrentLocation}
+                    className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] bg-brand-primary text-text-light hover:bg-brand-dark disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isLocating ? 'Detecting location...' : 'Use current location'}
+                  </button>
+                  {isFetchingSuggestions && (
+                    <span className="text-[11px] text-text-muted">Searching address suggestions…</span>
+                  )}
+                </div>
+                {locationError && (
+                  <p className="mt-1 text-xs text-red-400">{locationError}</p>
+                )}
+                {locationSuggestions.length > 0 && (
+                  <ul className="mt-2 max-h-40 overflow-auto rounded border border-white/15 bg-black/70 text-xs text-text-light">
+                    {locationSuggestions.map((item) => (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-white/10"
+                          onClick={() => handleSelectSuggestion(item)}
+                        >
+                          {item.placeName}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div className="space-y-1 md:col-span-2">
                 <label className="block text-xs text-text-muted uppercase tracking-[0.18em]">
@@ -301,8 +439,12 @@ export function BookingSection() {
                 >
                   {loading ? 'Sending booking...' : 'Confirm booking'}
                 </button>
-                {successMessage && <p className="text-xs text-accent-teal">{successMessage}</p>}
-                {errorMessage && <p className="text-xs text-red-400">{errorMessage}</p>}
+                {successMessage && (
+                  <p className="text-xs text-accent-teal">{successMessage}</p>
+                )}
+                {errorMessage && (
+                  <p className="text-xs text-red-400">{errorMessage}</p>
+                )}
               </div>
             </form>
           </div>
@@ -324,4 +466,3 @@ export function BookingSection() {
     </section>
   )
 }
-

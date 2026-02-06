@@ -12,7 +12,7 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('en')
+  const [language, setLanguageState] = useState<Language>('de')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -44,11 +44,11 @@ export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage()
 
   return (
-    <div className="inline-flex rounded-full border border-white/30 bg-black/40 text-[11px] md:text-xs overflow-hidden">
+    <div className="inline-flex items-stretch rounded-full border border-white/30 bg-black/40 text-[10px] sm:text-[11px] md:text-xs">
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`px-3 py-1.5 uppercase tracking-[0.16em] ${
+        className={`px-2.5 sm:px-3 py-1.5 uppercase tracking-[0.16em] ${
           language === 'en' ? 'bg-white text-black' : 'text-text-light'
         }`}
       >
@@ -57,7 +57,7 @@ export function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setLanguage('de')}
-        className={`px-3 py-1.5 uppercase tracking-[0.16em] ${
+        className={`px-2.5 sm:px-3 py-1.5 uppercase tracking-[0.16em] ${
           language === 'de' ? 'bg-white text-black' : 'text-text-light'
         }`}
       >

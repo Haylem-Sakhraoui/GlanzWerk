@@ -143,23 +143,6 @@ export function AuthPanel() {
         }
 
         if (data.user) {
-          // Create user profile in public.users table
-          const { error: profileError } = await supabaseBrowser
-            .from('users')
-            .insert([
-              {
-                id: data.user.id,
-                email: data.user.email,
-                full_name: fullName,
-                created_at: new Date().toISOString(),
-              },
-            ])
-            .select()
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError)
-          }
-
           setMessage(
             language === 'en'
               ? '🎉 Account created! Please check your email to confirm your address.'

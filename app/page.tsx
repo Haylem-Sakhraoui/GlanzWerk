@@ -8,14 +8,16 @@ import { Testimonials } from '../components/Testimonials'
 import { Footer } from '../components/Footer'
 import { TestimonialsWrapper } from '../components/TestimonialsWrapper'
 import { ServicesGridWrapper } from '../components/ServiceGridWrapper'
+import { Navbar } from '../components/Navbar'
 
 export default function HomePage() {
   return (
     <LanguageProvider>
       <TopOfferBar />
+      <Navbar />
       <div className="w-full bg-black border-b border-white/10">
         <img
-          src="/logo-glanzwerk.png"
+          src="/logo.png"
           alt="CarCleaner logo"
           className="w-full h-auto object-contain"
         />
