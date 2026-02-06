@@ -7,8 +7,12 @@ const gothicA1 = Gothic_A1({ subsets: ['latin'], weight: '500', variable: '--fon
 const leagueGothic = League_Gothic({ subsets: ['latin'], weight: '400', variable: '--font-league-gothic' })
 
 export const metadata = {
-  title: 'CarCleaner – Premium Car Cleaning in Germany',
-  description: 'Modern premium car cleaning service in Germany with easy online booking and account management.',
+  title: 'T&A',
+  description:
+    'Premium car cleaning service in Germany with easy online booking and account management.',
+  icons: {
+    icon: '/assets/img/favicon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
