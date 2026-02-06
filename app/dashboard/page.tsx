@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '../../lib/supabaseClient'
 
@@ -34,12 +34,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
-
-  useEffect(() => {
-    loadForCurrentUser()
-  }, [])
-
-  async function loadForCurrentUser() {
+  const loadForCurrentUser = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -77,13 +72,27 @@ export default function DashboardPage() {
         return
       }
 
-      setAppointments(data ?? [])
+      const rows = (data ?? []) as any[]
+
+      const normalized: AppointmentRow[] = rows.map((row) => ({
+        ...row,
+        customer: Array.isArray(row.customer)
+          ? row.customer[0] ?? null
+          : row.customer ?? null,
+        wash: Array.isArray(row.wash) ? row.wash[0] ?? null : row.wash ?? null,
+      }))
+
+      setAppointments(normalized)
     } catch (err: any) {
       setError(err.message ?? 'Failed to load appointments.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    loadForCurrentUser()
+  }, [loadForCurrentUser])
 
   function handleUpdateChange(id: string, field: keyof PendingUpdate, value: string) {
     setUpdates((previous) => ({
@@ -136,7 +145,7 @@ export default function DashboardPage() {
         console.error('Email notification error', invokeError)
       }
 
-      await loadAppointments()
+      await loadForCurrentUser()
     } catch (err: any) {
       setError(err.message ?? 'Failed to update appointment.')
     } finally {

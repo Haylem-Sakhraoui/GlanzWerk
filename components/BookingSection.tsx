@@ -58,15 +58,24 @@ export function BookingSection() {
     }
 
     async function loadWashTypes() {
-      const { data, error } = await supabaseBrowser.from('pcd_wash_types').select('id, code, name_en').eq('is_active', true)
+      const { data, error } = await supabaseBrowser
+        .from('pcd_wash_types')
+        .select('id, code, name_en')
+        .eq('is_active', true)
       if (error) {
         return
       }
       if (mounted && data) {
         setWashTypes(data)
-        if (!booking.washTypeId && data.length > 0) {
-          setBooking((previous) => ({ ...previous, washTypeId: data[0].id }))
-        }
+        setBooking((previous) => {
+          if (previous.washTypeId || data.length === 0) {
+            return previous
+          }
+          return {
+            ...previous,
+            washTypeId: data[0].id,
+          }
+        })
       }
     }
 
