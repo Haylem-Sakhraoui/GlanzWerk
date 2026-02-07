@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '../../lib/supabaseClient'
+import { useLanguage } from '../../components/LanguageProvider'
 
 type AppointmentRow = {
   id: string
@@ -22,18 +23,35 @@ type AppointmentRow = {
   } | null
 }
 
-type PendingUpdate = {
-  date: string
-  time: string
-}
-
 export default function DashboardPage() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [appointments, setAppointments] = useState<AppointmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({})
-  const [savingId, setSavingId] = useState<string | null>(null)
+  const title = language === 'en' ? 'Appointment dashboard' : 'Terminübersicht'
+  const subtitle =
+    language === 'en'
+      ? 'Track the status of your booking requests and upcoming pickup times.'
+      : 'Verfolgen Sie den Status Ihrer Buchungsanfragen und bevorstehenden Abholtermine.'
+  const loadingLabel =
+    language === 'en' ? 'Loading appointments…' : 'Termine werden geladen…'
+  const emptyLabel =
+    language === 'en' ? 'No appointments found.' : 'Keine Termine gefunden.'
+  const requestReceived =
+    language === 'en' ? 'Request received' : 'Anfrage eingegangen'
+  const serviceLabel = language === 'en' ? 'Service' : 'Service'
+  const pickupLabel = language === 'en' ? 'Pickup location' : 'Abholort'
+  const scheduledPickupLabel =
+    language === 'en' ? 'Scheduled pickup' : 'Geplante Abholung'
+  const awaitingLabel =
+    language === 'en' ? 'Awaiting confirmation' : 'Bestätigung ausstehend'
+  const notProvided = language === 'en' ? 'Not provided' : 'Nicht angegeben'
+  const errorFallback =
+    language === 'en'
+      ? 'Failed to load appointments.'
+      : 'Termine konnten nicht geladen werden.'
+
   const loadForCurrentUser = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -47,6 +65,16 @@ export default function DashboardPage() {
       }
 
       const userId = userData.user.id
+      const { data: adminRow } = await supabaseBrowser
+        .from('pcd_admins')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (adminRow) {
+        router.push('/dashboard/admin')
+        return
+      }
 
       const { data, error } = await supabaseBrowser
         .from('pcd_appointments')
@@ -65,7 +93,7 @@ export default function DashboardPage() {
           `,
         )
         .eq('customer_id', userId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
 
       if (error) {
         setError(error.message)
@@ -84,73 +112,28 @@ export default function DashboardPage() {
 
       setAppointments(normalized)
     } catch (err: any) {
-      setError(err.message ?? 'Failed to load appointments.')
+      setError(err.message ?? errorFallback)
     } finally {
       setLoading(false)
     }
-  }, [router])
+  }, [router, errorFallback])
 
   useEffect(() => {
     loadForCurrentUser()
   }, [loadForCurrentUser])
 
-  function handleUpdateChange(id: string, field: keyof PendingUpdate, value: string) {
-    setUpdates((previous) => ({
-      ...previous,
-      [id]: {
-        date: previous[id]?.date ?? '',
-        time: previous[id]?.time ?? '',
-        [field]: value,
-      },
-    }))
-  }
-
-  async function handleAssign(id: string) {
-    const current = updates[id]
-    if (!current?.date || !current?.time) {
-      setError('Please select both a pickup date and time.')
-      return
+  function getStatusStyles(status?: string | null) {
+    const label = (status || 'pending').toLowerCase()
+    if (label === 'assigned' || label === 'confirmed') {
+      return 'bg-emerald-500/15 text-emerald-200 border-emerald-400/40'
     }
-
-    const scheduled = new Date(`${current.date}T${current.time}`)
-    if (Number.isNaN(scheduled.getTime())) {
-      setError('The selected date or time is invalid.')
-      return
+    if (label === 'cancelled') {
+      return 'bg-red-500/15 text-red-200 border-red-400/40'
     }
-
-    setSavingId(id)
-    setError(null)
-
-    try {
-      const { error } = await supabaseBrowser
-        .from('pcd_appointments')
-        .update({
-          scheduled_at: scheduled.toISOString(),
-          status: 'confirmed',
-        })
-        .eq('id', id)
-
-      if (error) {
-        setError(error.message)
-        return
-      }
-
-      try {
-        await supabaseBrowser.functions.invoke('send-confirmation-email', {
-          body: {
-            appointmentId: id,
-          },
-        })
-      } catch (invokeError) {
-        console.error('Email notification error', invokeError)
-      }
-
-      await loadForCurrentUser()
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to update appointment.')
-    } finally {
-      setSavingId(null)
+    if (label === 'completed') {
+      return 'bg-blue-500/15 text-blue-200 border-blue-400/40'
     }
+    return 'bg-yellow-500/15 text-yellow-200 border-yellow-400/40'
   }
 
   return (
@@ -158,11 +141,10 @@ export default function DashboardPage() {
       <div className="max-w-[1340px] mx-auto px-4 md:px-6 lg:px-8 py-10 md:py-16">
         <div className="mb-8">
           <h1 className="font-league text-[32px] md:text-[40px] uppercase text-text-light">
-            Appointment dashboard
+            {title}
           </h1>
           <p className="text-sm text-text-muted mt-2 max-w-2xl">
-            Review pending appointments, assign pickup date and time, confirm bookings, and trigger
-            email notifications to your clients.
+            {subtitle}
           </p>
         </div>
 
@@ -173,113 +155,65 @@ export default function DashboardPage() {
         )}
 
         {loading ? (
-          <p className="text-sm text-text-muted">Loading appointments…</p>
+          <p className="text-sm text-text-muted">{loadingLabel}</p>
         ) : appointments.length === 0 ? (
-          <p className="text-sm text-text-muted">No appointments found.</p>
+          <p className="text-sm text-text-muted">{emptyLabel}</p>
         ) : (
-          <div className="overflow-x-auto border border-white/10 rounded bg-[#3a3a3a]">
-            <table className="min-w-full text-xs md:text-sm text-left">
-              <thead className="bg-black/40">
-                <tr>
-                  <th className="px-3 py-2 font-normal text-text-muted">Created</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Client</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Contact</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Service</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Pickup address</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Status</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Assign pickup</th>
-                  <th className="px-3 py-2 font-normal text-text-muted">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.map((appointment) => {
-                  const update = updates[appointment.id] ?? { date: '', time: '' }
-                  const createdLabel = new Date(
-                    appointment.created_at,
-                  ).toLocaleString(undefined, {
-                    dateStyle: 'short',
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {appointments.map((appointment) => {
+              const createdLabel = new Date(appointment.created_at).toLocaleString(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })
+              const scheduledLabel = appointment.scheduled_at
+                ? new Date(appointment.scheduled_at).toLocaleString(undefined, {
+                    dateStyle: 'medium',
                     timeStyle: 'short',
                   })
-                  const scheduledLabel = appointment.scheduled_at
-                    ? new Date(appointment.scheduled_at).toLocaleString(undefined, {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      })
-                    : 'Not assigned'
+                : awaitingLabel
+              const statusLabel = (appointment.status || 'pending').toUpperCase()
 
-                  return (
-                    <tr key={appointment.id} className="border-t border-white/10">
-                      <td className="px-3 py-3 align-top">
-                        <div className="space-y-1">
-                          <p className="text-text-light">{createdLabel}</p>
-                          <p className="text-[11px] text-text-muted">
-                            ID: {appointment.id.slice(0, 8)}…
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <p className="text-text-light">
-                          {appointment.customer?.full_name || 'Unknown'}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <p className="text-text-light">
-                          {appointment.customer?.phone || '—'}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <p className="text-text-light">
-                          {appointment.wash?.name_en || 'Service'}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <p className="text-text-light">
-                          {appointment.pickup_address || 'Not provided'}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center rounded-full bg-black/60 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-text-light">
-                            {appointment.status || 'pending'}
-                          </span>
-                          <p className="text-[11px] text-text-muted">{scheduledLabel}</p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <div className="flex flex-col gap-2">
-                          <input
-                            type="date"
-                            value={update.date}
-                            onChange={(event) =>
-                              handleUpdateChange(appointment.id, 'date', event.target.value)
-                            }
-                            className="w-full bg-black/40 border border-white/20 px-2 py-1.5 text-xs text-text-light outline-none focus:border-accent-teal"
-                          />
-                          <input
-                            type="time"
-                            value={update.time}
-                            onChange={(event) =>
-                              handleUpdateChange(appointment.id, 'time', event.target.value)
-                            }
-                            className="w-full bg-black/40 border border-white/20 px-2 py-1.5 text-xs text-text-light outline-none focus:border-accent-teal"
-                          />
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <button
-                          type="button"
-                          disabled={savingId === appointment.id}
-                          onClick={() => handleAssign(appointment.id)}
-                          className="inline-flex items-center justify-center rounded bg-brand-primary px-4 py-2 text-xs uppercase tracking-[0.18em] text-text-light hover:bg-brand-dark disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {savingId === appointment.id ? 'Saving…' : 'Assign & confirm'}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+              return (
+                <div
+                  key={appointment.id}
+                  className="rounded border border-white/10 bg-[#3a3a3a] p-4 flex flex-col gap-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                        {requestReceived}
+                      </p>
+                      <p className="text-text-light text-sm">{createdLabel}</p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] uppercase tracking-[0.16em] ${getStatusStyles(
+                        appointment.status,
+                      )}`}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm text-text-light">
+                    <p className="text-text-muted text-[11px] uppercase tracking-[0.16em]">
+                      {serviceLabel}
+                    </p>
+                    <p>{appointment.wash?.name_en || serviceLabel}</p>
+                  </div>
+                  <div className="space-y-1 text-sm text-text-light">
+                    <p className="text-text-muted text-[11px] uppercase tracking-[0.16em]">
+                      {pickupLabel}
+                    </p>
+                    <p>{appointment.pickup_address || notProvided}</p>
+                  </div>
+                  <div className="space-y-1 text-sm text-text-light">
+                    <p className="text-text-muted text-[11px] uppercase tracking-[0.16em]">
+                      {scheduledPickupLabel}
+                    </p>
+                    <p>{scheduledLabel}</p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

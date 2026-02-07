@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { supabaseBrowser } from '../lib/supabaseClient'
 import { useLanguage } from './LanguageProvider'
 
@@ -11,8 +11,10 @@ export function Navbar() {
   const { language } = useLanguage()
   const [authState, setAuthState] = useState<AuthState>('loading')
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     let mounted = true
@@ -23,9 +25,17 @@ export function Navbar() {
       if (data.user) {
         setAuthState('authenticated')
         setUserEmail(data.user.email ?? null)
+        const { data: adminRow } = await supabaseBrowser
+          .from('pcd_admins')
+          .select('user_id')
+          .eq('user_id', data.user.id)
+          .maybeSingle()
+        if (!mounted) return
+        setIsAdmin(Boolean(adminRow))
       } else {
         setAuthState('unauthenticated')
         setUserEmail(null)
+        setIsAdmin(false)
       }
     }
 
@@ -37,9 +47,19 @@ export function Navbar() {
         if (session?.user) {
           setAuthState('authenticated')
           setUserEmail(session.user.email ?? null)
+          supabaseBrowser
+            .from('pcd_admins')
+            .select('user_id')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+            .then(({ data: adminRow }) => {
+              if (!mounted) return
+              setIsAdmin(Boolean(adminRow))
+            })
         } else {
           setAuthState('unauthenticated')
           setUserEmail(null)
+          setIsAdmin(false)
         }
       },
     )
@@ -64,14 +84,19 @@ export function Navbar() {
   const labelServices = language === 'en' ? 'Services' : 'Leistungen'
   const labelPrices = language === 'en' ? 'Prices' : 'Preise'
   const labelContact = language === 'en' ? 'Contact' : 'Kontakt'
+  const labelHome = language === 'en' ? 'Home' : 'Startseite'
   const labelMyAppointments =
     language === 'en' ? 'My appointments' : 'Meine Termine'
+  const labelAdminDashboard =
+    language === 'en' ? 'Admin dashboard' : 'Admin-Dashboard'
   const labelLogout = language === 'en' ? 'Logout' : 'Abmelden'
   const labelCta =
     language === 'en' ? 'Login / Sign up' : 'Login / Registrieren'
+  const isDashboard = pathname.startsWith('/dashboard')
+  const homePrefix = isDashboard ? '/' : ''
 
   return (
-    <header className="bg-[#1a1a1a] border-b border-white/10">
+    <header className="sticky top-0 z-50 bg-[#1a1a1a]/95 border-b border-white/10 backdrop-blur">
       <div className="max-w-[1340px] mx-auto flex items-center justify-between gap-4 px-4 md:px-6 lg:px-8 py-3">
         <div className="flex items-center gap-2">
           {authState === 'authenticated' && userEmail && (
@@ -83,31 +108,37 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           <nav className="hidden md:flex items-center gap-4 text-xs md:text-sm">
             <a
-              href="#services"
+              href="/"
+              className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
+            >
+              {labelHome}
+            </a>
+            <a
+              href={`${homePrefix}#services`}
               className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
             >
               {labelServices}
             </a>
             <a
-              href="#booking"
+              href={`${homePrefix}#booking`}
               className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
             >
               {labelPrices}
             </a>
             <a
-              href="#booking"
+              href={`${homePrefix}#booking`}
               className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
             >
               {labelBook}
             </a>
             <a
-              href="#auth"
+              href={`${homePrefix}#auth`}
               className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
             >
               {labelAccount}
             </a>
             <a
-              href="#contact"
+              href={`${homePrefix}#contact`}
               className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
             >
               {labelContact}
@@ -115,10 +146,10 @@ export function Navbar() {
             {authState === 'authenticated' && (
               <>
                 <a
-                  href="/dashboard"
+                  href={isAdmin ? '/dashboard/admin' : '/dashboard'}
                   className="uppercase tracking-[0.18em] text-text-muted hover:text-text-light"
                 >
-                  {labelMyAppointments}
+                  {isAdmin ? labelAdminDashboard : labelMyAppointments}
                 </a>
                 <button
                   type="button"
@@ -131,7 +162,7 @@ export function Navbar() {
             )}
             {authState === 'unauthenticated' && (
               <a
-                href="#auth"
+                href={`${homePrefix}#auth`}
                 className="rounded bg-brand-primary px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-text-light hover:bg-brand-dark"
               >
                 {labelCta}
@@ -153,35 +184,42 @@ export function Navbar() {
         <div className="md:hidden border-t border-white/10 bg-[#111]">
           <div className="max-w-[1340px] mx-auto px-4 py-3 flex flex-col gap-2 text-xs">
             <a
-              href="#services"
+              href="/"
+              className="uppercase tracking-[0.18em] text-text-light"
+              onClick={() => setMenuOpen(false)}
+            >
+              {labelHome}
+            </a>
+            <a
+              href={`${homePrefix}#services`}
               className="uppercase tracking-[0.18em] text-text-light"
               onClick={() => setMenuOpen(false)}
             >
               {labelServices}
             </a>
             <a
-              href="#booking"
+              href={`${homePrefix}#booking`}
               className="uppercase tracking-[0.18em] text-text-light"
               onClick={() => setMenuOpen(false)}
             >
               {labelPrices}
             </a>
             <a
-              href="#booking"
+              href={`${homePrefix}#booking`}
               className="uppercase tracking-[0.18em] text-text-light"
               onClick={() => setMenuOpen(false)}
             >
               {labelBook}
             </a>
             <a
-              href="#auth"
+              href={`${homePrefix}#auth`}
               className="uppercase tracking-[0.18em] text-text-light"
               onClick={() => setMenuOpen(false)}
             >
               {labelAccount}
             </a>
             <a
-              href="#contact"
+              href={`${homePrefix}#contact`}
               className="uppercase tracking-[0.18em] text-text-light"
               onClick={() => setMenuOpen(false)}
             >
@@ -190,11 +228,11 @@ export function Navbar() {
             {authState === 'authenticated' && (
               <>
                 <a
-                  href="/dashboard"
+                  href={isAdmin ? '/dashboard/admin' : '/dashboard'}
                   className="uppercase tracking-[0.18em] text-text-light"
                   onClick={() => setMenuOpen(false)}
                 >
-                  {labelMyAppointments}
+                  {isAdmin ? labelAdminDashboard : labelMyAppointments}
                 </a>
                 <button
                   type="button"
@@ -207,7 +245,7 @@ export function Navbar() {
             )}
             {authState === 'unauthenticated' && (
               <a
-                href="#auth"
+                href={`${homePrefix}#auth`}
                 className="mt-1 rounded bg-brand-primary px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-text-light hover:bg-brand-dark"
                 onClick={() => setMenuOpen(false)}
               >

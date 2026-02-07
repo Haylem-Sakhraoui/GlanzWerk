@@ -21,13 +21,13 @@ export function Footer() {
             <p className="font-gothic text-text-light">
               {language === 'en' ? 'Contact' : 'Kontakt'}
             </p>
-            <p>CarCleaner Workshop</p>
-            <p>Musterstraße 12</p>
-            <p>12345 Berlin, Deutschland</p>
+            <p>T&A</p>
+            <p>Stotternheimer Str 8</p>
+            <p>99086 Erfurt, Deutschland</p>
             <p className="mt-1">
               {language === 'en' ? 'Tel:' : 'Tel.'} +49 30 0000 0000
             </p>
-            <p>E-Mail: hello@carcleaner.de</p>
+            <p>E-Mail: sultan.althurait@gmx.com</p>
           </div>
           <div className="space-y-2 text-xs md:text-sm text-text-muted">
             <p className="font-gothic text-text-light">
@@ -68,7 +68,7 @@ export function Footer() {
         </div>
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-text-muted">
           <p>
-            © {new Date().getFullYear()} CarCleaner.{' '}
+            © {new Date().getFullYear()} T&A.{' '}
             {language === 'en'
               ? 'All rights reserved.'
               : 'Alle Rechte vorbehalten.'}

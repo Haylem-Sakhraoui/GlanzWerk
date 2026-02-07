@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
 import { Roboto, Gothic_A1, League_Gothic } from 'next/font/google'
+import { LanguageProvider } from '../components/LanguageProvider'
+import { TopOfferBar } from '../components/TopOfferBar'
+import { Navbar } from '../components/Navbar'
 import './globals.css'
 
 const roboto = Roboto({ subsets: ['latin'], weight: ['300', '500'], variable: '--font-roboto' })
@@ -22,7 +25,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         id="app-root"
         className={`${roboto.variable} ${gothicA1.variable} ${leagueGothic.variable} bg-neutral-bg text-white overflow-x-hidden font-secondary`}
       >
-        <main>{children}</main>
+        <LanguageProvider>
+          <TopOfferBar />
+          <Navbar />
+          <main>{children}</main>
+        </LanguageProvider>
       </body>
     </html>
   )

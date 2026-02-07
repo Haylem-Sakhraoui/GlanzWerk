@@ -14,6 +14,7 @@ type WashType = {
 
 type BookingState = {
   name: string
+  email: string
   phone: string
   carType: CarType
   brandModel: string
@@ -27,6 +28,7 @@ export function BookingSection() {
   const { language } = useLanguage()
   const [booking, setBooking] = useState<BookingState>({
     name: '',
+    email: '',
     phone: '',
     carType: 'sedan',
     brandModel: '',
@@ -54,6 +56,16 @@ export function BookingSection() {
       const { data } = await supabaseBrowser.auth.getUser()
       if (mounted) {
         setUserId(data.user?.id ?? null)
+        if (data.user?.email) {
+          setBooking((previous) =>
+            previous.email
+              ? previous
+              : {
+                  ...previous,
+                  email: data.user?.email ?? '',
+                },
+          )
+        }
       }
     }
 
@@ -235,6 +247,11 @@ export function BookingSection() {
       return
     }
 
+    if (!booking.email) {
+      setErrorMessage('Please enter a valid email address.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -255,6 +272,7 @@ export function BookingSection() {
               user_id: userId,
               full_name: booking.name,
               phone: booking.phone,
+              email: booking.email,
               preferred_language: preferredLanguage,
             },
             {
@@ -267,29 +285,76 @@ export function BookingSection() {
           return
         }
       }
+      if (userId) {
+        const { data: appointmentRow, error: appointmentError } =
+          await supabaseBrowser
+            .from('pcd_appointments')
+            .insert({
+              customer_id: userId,
+              wash_type_id: booking.washTypeId,
+              vehicle_category: getVehicleCategory(booking.carType),
+              scheduled_at: null,
+              status: 'pending',
+              pickup_address: booking.pickupLocation,
+              pickup_latitude: booking.pickupLat,
+              pickup_longitude: booking.pickupLng,
+              notes,
+            })
+            .select('id')
+            .single()
 
-      const { error: appointmentError } = await supabaseBrowser.from('pcd_appointments').insert({
-        customer_id: userId,
-        wash_type_id: booking.washTypeId,
-        vehicle_category: getVehicleCategory(booking.carType),
-        scheduled_at: null,
-        status: 'pending',
-        pickup_address: booking.pickupLocation,
-        pickup_latitude: booking.pickupLat,
-        pickup_longitude: booking.pickupLng,
-        notes,
-      })
+        if (appointmentError) {
+          setErrorMessage(appointmentError.message)
+          return
+        }
 
-      if (appointmentError) {
-        setErrorMessage(appointmentError.message)
-        return
+        await supabaseBrowser.from('pcd_appointment_logs').insert({
+          appointment_id: appointmentRow?.id,
+          actor_type: 'client',
+          actor_id: userId,
+          action: 'booking_created',
+          message: 'Client booking created',
+        })
+
+        setSuccessMessage(
+          language === 'en'
+            ? 'Booking received. We will confirm your appointment time shortly.'
+            : 'Buchung eingegangen. Wir bestätigen Ihren Termin in Kürze.',
+        )
+      } else {
+        const response = await fetch('/api/guest/book', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: booking.name,
+            email: booking.email,
+            phone: booking.phone,
+            washTypeId: booking.washTypeId,
+            carType: booking.carType,
+            brandModel: booking.brandModel,
+            pickupLocation: booking.pickupLocation,
+            pickupLat: booking.pickupLat,
+            pickupLng: booking.pickupLng,
+            preferredLanguage,
+            notes,
+          }),
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}))
+          setErrorMessage(payload.error || 'Unable to create guest booking.')
+          return
+        }
+
+        setSuccessMessage(
+          language === 'en'
+            ? 'Booking received. Check your email to verify your request.'
+            : 'Buchung eingegangen. Bitte bestätigen Sie Ihre Anfrage per E-Mail.',
+        )
       }
 
-      setSuccessMessage(
-        language === 'en'
-          ? 'Booking received. We will confirm your appointment time shortly.'
-          : 'Buchung eingegangen. Wir bestätigen Ihren Termin in Kürze.',
-      )
       setBooking((previous) => ({
         ...previous,
         brandModel: '',
@@ -335,6 +400,20 @@ export function BookingSection() {
               </div>
               <div className="space-y-1">
                 <label className="block text-xs text-text-muted uppercase tracking-[0.18em]">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={booking.email}
+                  onChange={(event) => handleChange('email', event.target.value)}
+                  disabled={Boolean(userId)}
+                  className="w-full bg-black/40 border border-white/20 px-3 py-2 text-sm text-text-light outline-none focus:border-accent-teal disabled:opacity-70"
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-text-muted uppercase tracking-[0.18em]">
                   Phone
                 </label>
                 <input
@@ -346,7 +425,7 @@ export function BookingSection() {
                   placeholder="+49 ..."
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 md:col-span-2">
                 <label className="block text-xs text-text-muted uppercase tracking-[0.18em]">
                   Car type
                 </label>
