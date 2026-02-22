@@ -5,45 +5,53 @@ import { TopOfferBar } from '../components/TopOfferBar'
 import { Navbar } from '../components/Navbar'
 import './globals.css'
 
-const roboto = Roboto({ subsets: ['latin'], weight: ['300', '500'], variable: '--font-roboto' })
-const gothicA1 = Gothic_A1({ subsets: ['latin'], weight: '500', variable: '--font-gothic-a1' })
-const leagueGothic = League_Gothic({ subsets: ['latin'], weight: '400', variable: '--font-league-gothic' })
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['300', '500'],
+  variable: '--font-roboto',
+})
+
+const gothicA1 = Gothic_A1({
+  subsets: ['latin'],
+  weight: '500',
+  variable: '--font-gothic-a1',
+})
+
+const leagueGothic = League_Gothic({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-league-gothic',
+})
+
 const siteUrl = 'https://fahrzeugaufbereitung-ta.de'
 const logoUrl = `${siteUrl}/logo1.png`
 
 export const metadata = {
-  title: 'T&A',
+  metadataBase: new URL(siteUrl),
+
+  title: {
+    default: 'T&A Fahrzeugaufbereitung',
+    template: '%s | T&A Fahrzeugaufbereitung',
+  },
+
   description:
     'Premium car cleaning service in Germany with easy online booking and account management.',
-  metadataBase: new URL(siteUrl),
+
   icons: {
-    // ✅ FIXED: Point to your actual logo file
-    icon: '/logo1.png',
-    // ✅ ADDED: Multiple sizes for better compatibility
-    shortcut: '/logo1.png',
-    apple: '/logo1.png',
-    // ✅ ADDED: You can also add a dedicated favicon.ico
-    other: [
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '32x32',
-        url: '/logo1.png',
-      },
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '16x16',
-        url: '/logo1.png',
-      },
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
     ],
+    apple: '/apple-touch-icon.png',
   },
+
   openGraph: {
-    title: 'T&A',
+    title: 'T&A Fahrzeugaufbereitung',
     description:
       'Premium car cleaning service in Germany with easy online booking and account management.',
     url: siteUrl,
-    siteName: 'T&A',
+    siteName: 'T&A Fahrzeugaufbereitung',
     images: [
       {
         url: logoUrl,
@@ -52,43 +60,45 @@ export const metadata = {
         alt: 'T&A logo',
       },
     ],
-    locale: 'en_US',
+    locale: 'de_DE',
     type: 'website',
   },
+
   twitter: {
-    card: 'summary',
-    title: 'T&A',
+    card: 'summary_large_image',
+    title: 'T&A Fahrzeugaufbereitung',
     description:
-      'Premium car cleaning service in Germany with easy online booking and account management.',
+      'Premium car cleaning service in Germany with easy online booking.',
     images: [logoUrl],
   },
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
   const organizationJsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'T&A',
+    '@type': 'AutoWash',
+    name: 'T&A Fahrzeugaufbereitung',
     url: siteUrl,
     logo: logoUrl,
   }
 
   return (
-    <html lang="en">
-      <head>
-        {/* ✅ ADDED: Explicit favicon link for older browsers */}
-        <link rel="icon" href="/logo1.png" />
-        {/* ✅ ADDED: Apple touch icon */}
-        <link rel="apple-touch-icon" href="/logo1.png" />
-      </head>
+    <html lang="de">
       <body
-        id="app-root"
         className={`${roboto.variable} ${gothicA1.variable} ${leagueGothic.variable} bg-neutral-bg text-white overflow-x-hidden font-secondary`}
       >
+        {/* Structured Data for Google */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
         />
+
         <LanguageProvider>
           <TopOfferBar />
           <Navbar />
