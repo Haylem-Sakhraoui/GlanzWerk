@@ -9,7 +9,7 @@ const roboto = Roboto({ subsets: ['latin'], weight: ['300', '500'], variable: '-
 const gothicA1 = Gothic_A1({ subsets: ['latin'], weight: '500', variable: '--font-gothic-a1' })
 const leagueGothic = League_Gothic({ subsets: ['latin'], weight: '400', variable: '--font-league-gothic' })
 const siteUrl = 'https://fahrzeugaufbereitung-ta.de'
-const logoUrl = `${siteUrl}/logo.png`
+const logoUrl = `${siteUrl}/logo1.png`
 
 export const metadata = {
   title: 'T&A',
@@ -17,8 +17,26 @@ export const metadata = {
     'Premium car cleaning service in Germany with easy online booking and account management.',
   metadataBase: new URL(siteUrl),
   icons: {
-    icon: '/assets/img/favicon.png',
-    apple: '/logo.png',
+    // ✅ FIXED: Point to your actual logo file
+    icon: '/logo1.png',
+    // ✅ ADDED: Multiple sizes for better compatibility
+    shortcut: '/logo1.png',
+    apple: '/logo1.png',
+    // ✅ ADDED: You can also add a dedicated favicon.ico
+    other: [
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        url: '/logo1.png',
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '16x16',
+        url: '/logo1.png',
+      },
+    ],
   },
   openGraph: {
     title: 'T&A',
@@ -57,6 +75,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   return (
     <html lang="en">
+      <head>
+        {/* ✅ ADDED: Explicit favicon link for older browsers */}
+        <link rel="icon" href="/logo1.png" />
+        {/* ✅ ADDED: Apple touch icon */}
+        <link rel="apple-touch-icon" href="/logo1.png" />
+      </head>
       <body
         id="app-root"
         className={`${roboto.variable} ${gothicA1.variable} ${leagueGothic.variable} bg-neutral-bg text-white overflow-x-hidden font-secondary`}
