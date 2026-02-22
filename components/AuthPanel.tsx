@@ -359,7 +359,9 @@ export function AuthPanel() {
                   type="email"
                   required
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) =>
+                    setEmail(event.target.value.trim().toLowerCase())
+                  }
                   className="w-full bg-black/40 border border-white/20 px-3 py-2.5 text-sm text-text-light outline-none focus:border-accent-teal rounded"
                   placeholder={language === 'en' ? 'you@example.com' : 'sie@example.com'}
                   disabled={loading}

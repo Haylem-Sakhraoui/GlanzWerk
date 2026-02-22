@@ -4,8 +4,8 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'perfectcleandesign-erfurt.de',
-        pathname: '/wp-content/**',
+        hostname: 'phtuekygfruyruwhiqyf.supabase.co',
+        pathname: '/storage/v1/object/public/**',
       },
     ],
   },

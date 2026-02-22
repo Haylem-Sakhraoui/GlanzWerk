@@ -4,6 +4,8 @@ import { BookingSection } from '../components/BookingSection'
 import { Footer } from '../components/Footer'
 import { TestimonialsWrapper } from '../components/TestimonialsWrapper'
 import { ServicesGridWrapper } from '../components/ServiceGridWrapper'
+import { InstagramGrid } from '../components/InstagramGrid'
+import { Carousel } from '../components/Carousel'
 
 export default function HomePage() {
   return (
@@ -16,6 +18,7 @@ export default function HomePage() {
         />
       </div>
       <Hero />
+      <Carousel/>
       <AuthPanel />
       <BookingSection />
       <ServicesGridWrapper />

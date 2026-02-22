@@ -406,7 +406,9 @@ export function BookingSection() {
                   type="email"
                   required
                   value={booking.email}
-                  onChange={(event) => handleChange('email', event.target.value)}
+                  onChange={(event) =>
+                    handleChange('email', event.target.value.trim().toLowerCase())
+                  }
                   disabled={Boolean(userId)}
                   className="w-full bg-black/40 border border-white/20 px-3 py-2 text-sm text-text-light outline-none focus:border-accent-teal disabled:opacity-70"
                   placeholder="you@example.com"

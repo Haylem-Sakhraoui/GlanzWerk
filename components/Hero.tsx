@@ -1,35 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
 import { useLanguage } from './LanguageProvider'
-
-const heroPairs = [
-  {
-    id: 1,
-    before: 'https://perfectcleandesign-erfurt.de/wp-content/uploads/2025/09/5.png',
-    after: 'https://perfectcleandesign-erfurt.de/wp-content/uploads/2025/09/6.png',
-  },
-  {
-    id: 2,
-    before: 'https://perfectcleandesign-erfurt.de/wp-content/uploads/2025/09/3-2.png',
-    after: 'https://perfectcleandesign-erfurt.de/wp-content/uploads/2025/09/9.png',
-  },
-]
 
 export function Hero() {
   const { language } = useLanguage()
-  const [activeIndex, setActiveIndex] = useState(0)
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setActiveIndex((previous) => (previous + 1) % heroPairs.length)
-    }, 3500)
-
-    return () => {
-      window.clearInterval(interval)
-    }
-  }, [])
 
   const title =
     language === 'en' ? 'Premium car cleaning in Germany' : 'Premium Autoreinigung in Deutschland'
@@ -58,8 +33,6 @@ export function Hero() {
     language === 'en'
       ? 'Every 3rd cleaning at our hub is 50% off.'
       : 'Jede 3. Reinigung in unserem Hub ist 50% günstiger.'
-
-  const activePair = heroPairs[activeIndex]
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-black via-neutral-bg to-neutral-bg">
@@ -99,51 +72,6 @@ export function Hero() {
             <div>
               <p className="font-gothic text-text-light">{offerTitle}</p>
               <p>{offerText}</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 w-full max-w-xl">
-          <div className="relative w-full aspect-[4/3] rounded-none overflow-hidden border border-white/15">
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent z-10" />
-            <div className="relative w-full h-full flex">
-              <div className="relative w-1/2 h-full overflow-hidden group">
-                <img
-                  src={activePair.before}
-                  alt="Before car cleaning"
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/40 flex items-end justify-between p-4 text-xs md:text-sm text-text-light">
-                  <span className="font-gothic uppercase">
-                    {language === 'en' ? 'Before' : 'Vorher'}
-                  </span>
-                  <span className="bg-white/15 px-2 py-1">
-                    {language === 'en' ? 'Before' : 'Vorher'}
-                  </span>
-                </div>
-              </div>
-              <div className="relative w-1/2 h-full overflow-hidden group">
-                <img
-                  src={activePair.after}
-                  alt="After car cleaning"
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/40 flex items-end justify-between p-4 text-xs md:text-sm text-text-light">
-                  <span className="font-gothic uppercase">
-                    {language === 'en' ? 'After' : 'Nachher'}
-                  </span>
-                  <span className="bg-white/15 px-2 py-1">
-                    {language === 'en' ? 'After' : 'Nachher'}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 text-xs md:text-sm text-text-light">
-              <span className="inline-block h-2 w-2 rounded-full bg-brand-primary" />
-              <span>
-                {language === 'en'
-                  ? 'Live finish – real CarCleaner results'
-                  : 'Live Finish – echte CarCleaner-Ergebnisse'}
-              </span>
             </div>
           </div>
         </div>

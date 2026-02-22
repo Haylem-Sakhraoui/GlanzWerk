@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import nodemailer from 'nodemailer'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const resendApiKey = process.env.RESEND_API_KEY
+const smtpHost = process.env.SMTP_HOST
+const smtpPort = process.env.SMTP_PORT
+const smtpUser = process.env.SMTP_USER
+const smtpPass = process.env.SMTP_PASS
+const smtpSecure = process.env.SMTP_SECURE
 const emailFrom = process.env.EMAIL_FROM
 
 type EmailQueueRow = {
@@ -16,10 +21,32 @@ type EmailQueueRow = {
   attempts: number
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function buildDetailRows(details: Array<{ label: string; value: string }>) {
+  return details
+    .filter((detail) => detail.value.trim().length > 0)
+    .map(
+      (detail) =>
+        `<tr>
+          <td style="padding:6px 0;color:#8f8f8f;font-size:12px;text-transform:uppercase;letter-spacing:0.12em;width:35%;">${escapeHtml(detail.label)}</td>
+          <td style="padding:6px 0;color:#ebebeb;font-size:14px;">${escapeHtml(detail.value)}</td>
+        </tr>`,
+    )
+    .join('')
+}
+
 function buildGuestVerificationEmail(payload: Record<string, unknown>) {
-  const name = String(payload.name ?? 'there')
-  const pickupLocation = String(payload.pickupLocation ?? 'your address')
-  const verificationUrl = String(payload.verificationUrl ?? '#')
+  const name = escapeHtml(String(payload.name ?? 'there'))
+  const pickupLocation = escapeHtml(String(payload.pickupLocation ?? 'your address'))
+  const verificationUrl = escapeHtml(String(payload.verificationUrl ?? '#'))
 
   return {
     subject: 'Confirm your T&A booking request',
@@ -66,11 +93,28 @@ function buildGuestVerificationEmail(payload: Record<string, unknown>) {
 }
 
 function buildAppointmentConfirmedEmail(payload: Record<string, unknown>) {
-  const name = String(payload.name ?? 'there')
+  const name = escapeHtml(String(payload.name ?? 'there'))
   const pickupLocation = String(payload.pickupLocation ?? 'your address')
   const scheduledAt = String(payload.scheduledAt ?? '')
   const serviceName = String(payload.serviceName ?? 'Car cleaning')
   const assignedStaff = String(payload.assignedStaff ?? 'our team')
+  const appointmentRef = String(payload.appointmentRef ?? payload.appointmentId ?? '')
+  const vehicle = String(payload.vehicle ?? '')
+  const phone = String(payload.phone ?? '')
+  const notes = String(payload.notes ?? '')
+  const price = String(payload.price ?? '')
+  const serviceNameSafe = escapeHtml(serviceName)
+  const detailRows = buildDetailRows([
+    { label: 'Pickup time', value: scheduledAt || 'To be confirmed' },
+    { label: 'Location', value: pickupLocation },
+    { label: 'Service', value: serviceName },
+    { label: 'Assigned', value: assignedStaff },
+    { label: 'Reference', value: appointmentRef },
+    { label: 'Vehicle', value: vehicle },
+    { label: 'Phone', value: phone },
+    { label: 'Price', value: price },
+    { label: 'Notes', value: notes },
+  ])
 
   return {
     subject: 'Your T&A pickup is confirmed',
@@ -93,14 +137,14 @@ function buildAppointmentConfirmedEmail(payload: Record<string, unknown>) {
             </tr>
             <tr>
               <td style="font-size:14px;line-height:1.6;color:#cfcfcf;padding-top:12px;">
-                Hi ${name}, your ${serviceName} appointment is confirmed.
+                Hi ${name}, your ${serviceNameSafe} appointment is confirmed.
               </td>
             </tr>
             <tr>
-              <td style="font-size:14px;line-height:1.6;color:#cfcfcf;padding-top:8px;">
-                Pickup time: ${scheduledAt || 'To be confirmed'}<br/>
-                Location: ${pickupLocation}<br/>
-                Assigned: ${assignedStaff}
+              <td style="padding-top:16px;">
+                <table width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #2c2c2c;">
+                  ${detailRows}
+                </table>
               </td>
             </tr>
           </table>
@@ -134,7 +178,8 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!resendApiKey || !emailFrom) {
+  const smtpPortNumber = Number(smtpPort ?? 0)
+  if (!smtpHost || !smtpPortNumber || !smtpUser || !smtpPass || !emailFrom) {
     return NextResponse.json(
       { error: 'Missing email provider configuration.' },
       { status: 500 },
@@ -176,6 +221,16 @@ export async function POST(request: Request) {
 
   let processed = 0
 
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPortNumber,
+    secure: smtpSecure === 'true' || smtpPortNumber === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  })
+
   for (const item of queueItems) {
     await supabase
       .from('pcd_email_queue')
@@ -188,24 +243,12 @@ export async function POST(request: Request) {
 
     try {
       const { subject, html } = buildEmailContent(item.template, item.payload)
-      const sendResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: [item.recipient_email],
-          subject,
-          html,
-        }),
+      await transport.sendMail({
+        from: emailFrom,
+        to: item.recipient_email,
+        subject,
+        html,
       })
-
-      if (!sendResponse.ok) {
-        const errorPayload = await sendResponse.text()
-        throw new Error(errorPayload || 'Email provider error')
-      }
 
       await supabase
         .from('pcd_email_queue')

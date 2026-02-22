@@ -1,4 +1,4 @@
- 'use client'
+'use client'
 
 import Link from 'next/link'
 import { useLanguage } from './LanguageProvider'
@@ -24,17 +24,30 @@ export function Footer() {
             <p>T&A</p>
             <p>Stotternheimer Str 8</p>
             <p>99086 Erfurt, Deutschland</p>
+            <div className="pt-2">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d192.05505316790604!2d11.032947225520509!3d51.008504302701425!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47a46de365677961%3A0xdf810e695895aa80!2sT%26A%20fahrzeugaufbereitung!5e0!3m2!1sfr!2sus!4v1771718930122!5m2!1sfr!2sus"
+                width="600"
+                height="450"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="w-full h-32 rounded border border-white/10"
+                title="T&A map"
+              />
+            </div>
             <p className="mt-1">
-              {language === 'en' ? 'Tel:' : 'Tel.'} +49 30 0000 0000
+              {language === 'en' ? 'Tel:' : 'Tel.'} +49 15212005668
             </p>
-            <p>E-Mail: sultan.althurait@gmx.com</p>
+            <p>E-Mail: info@fahrzeugaufbereitung-ta.de</p>
           </div>
           <div className="space-y-2 text-xs md:text-sm text-text-muted">
             <p className="font-gothic text-text-light">
               {language === 'en' ? 'Business hours' : 'Öffnungszeiten'}
             </p>
             <p>
-              {language === 'en' ? 'Mon–Fri:' : 'Mo–Fr:'} 08:00 – 19:00
+              {language === 'en' ? 'Mon–Fri:' : 'Mo–Fr:'} 09:00 – 19:00
             </p>
             <p>
               {language === 'en' ? 'Sat:' : 'Sa:'} 09:00 – 16:00

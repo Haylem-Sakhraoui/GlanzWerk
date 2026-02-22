@@ -50,10 +50,12 @@ export async function POST(request: Request) {
     notes?: string
   }
 
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+
   if (
     !name ||
-    !email ||
-    !email.includes('@') ||
+    !normalizedEmail ||
+    !normalizedEmail.includes('@') ||
     !phone ||
     !washTypeId ||
     !pickupLocation ||
@@ -75,10 +77,49 @@ export async function POST(request: Request) {
     },
   )
 
+  const { data: existingCustomer, error: customerError } = await supabase
+    .from('pcd_customers')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .limit(1)
+
+  if (customerError) {
+    return NextResponse.json({ error: customerError.message }, { status: 500 })
+  }
+
+  if (existingCustomer && existingCustomer.length > 0) {
+    return NextResponse.json(
+      { error: 'Email already registered. Please sign in to book.' },
+      { status: 409 },
+    )
+  }
+
+  const { data: existingGuest, error: guestError } = await supabase
+    .from('pcd_guest_customers')
+    .select('id, verified_at')
+    .eq('email', normalizedEmail)
+    .limit(1)
+
+  if (guestError) {
+    return NextResponse.json({ error: guestError.message }, { status: 500 })
+  }
+
+  if (existingGuest && existingGuest.length > 0) {
+    const verifiedAt = existingGuest[0]?.verified_at
+    return NextResponse.json(
+      {
+        error: verifiedAt
+          ? 'Email already registered. Please sign in to book.'
+          : 'Email already registered. Please verify your email before booking again.',
+      },
+      { status: 409 },
+    )
+  }
+
   const { data, error } = await supabase.rpc('pcd_create_guest_booking', {
     p_full_name: name,
     p_phone: phone,
-    p_email: email,
+    p_email: normalizedEmail,
     p_wash_type_id: washTypeId,
     p_vehicle_category: getVehicleCategory(carType),
     p_pickup_address: pickupLocation,
@@ -108,7 +149,7 @@ export async function POST(request: Request) {
     'pcd_enqueue_email',
     {
       template: 'guest_verification',
-      recipient_email: email,
+      recipient_email: normalizedEmail,
       payload: {
         name,
         pickupLocation,
