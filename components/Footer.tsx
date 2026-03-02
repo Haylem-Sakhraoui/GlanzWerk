@@ -47,10 +47,10 @@ export function Footer() {
               {language === 'en' ? 'Business hours' : 'Öffnungszeiten'}
             </p>
             <p>
-              {language === 'en' ? 'Mon–Fri:' : 'Mo–Fr:'} 09:00 – 19:00
+              {language === 'en' ? 'Mon–Fri:' : 'Mo–Fr:'} 09:00 – 16:00
             </p>
             <p>
-              {language === 'en' ? 'Sat:' : 'Sa:'} 09:00 – 16:00
+              {language === 'en' ? 'Sat: only by appointment' : 'Sa: nur nach Vereinbarung'} 
             </p>
             <p>{language === 'en' ? 'Sun: Closed' : 'So: Geschlossen'}</p>
           </div>

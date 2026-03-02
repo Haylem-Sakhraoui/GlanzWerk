@@ -1,28 +1,30 @@
+'use client'
+
 interface TestimonialsProps {
   language: 'en' | 'de'
 }
 
-const testimonials = [
+const fallbackTestimonials = [
   {
-    name: 'Maximilian S.',
-    city: 'Berlin',
+    name: 'Mariam Al-Hijawi',
+    city: 'Erfurt',
     rating: 5,
-    textEn: 'Super fast and professional. My SUV looks like new again.',
-    textDe: 'Sehr schnell und professionell. Mein SUV sieht wieder wie neu aus.',
+    textEn: 'Excellent work, very good reception from the employer, and quick and efficient execution. I am very satisfied and I highly recommend this company!',
+    textDe: 'Hervorragende Arbeit, sehr guter Umgang durch den Arbeitgeber und schnelle, effiziente Erledigung. Ich bin sehr zufrieden und kann das Unternehmen nur weiterempfehlen!',
   },
   {
-    name: 'Laura K.',
-    city: 'Hamburg',
+    name: 'Omar Ali',
+    city: 'Erfurt',
     rating: 5,
-    textEn: 'Easy online booking and pickup from my office. Highly recommended.',
-    textDe: 'Einfache Online-Buchung und Abholung direkt vom Büro. Sehr empfehlenswert.',
+    textEn: 'A comforting verse, God willing… May God provide for your needs and open the doors of His abundant grace to you.',
+    textDe: 'Ein tröstlicher Vers, so Gott will… Möge Gott für deine Bedürfnisse sorgen und dir die Türen seiner überreichen Gnade öffnen.',
   },
   {
-    name: 'Tobias R.',
-    city: 'München',
-    rating: 4,
-    textEn: 'Top interior detailing, every corner was spotless.',
-    textDe: 'Top Innenreinigung, jede Ecke war sauber.',
+    name: 'Malak Ahmad',
+    city: 'Erfurt',
+    rating: 5,
+    textEn: 'Good job ...great service',
+    textDe: 'Gute Arbeit ...toller Service',
   },
 ]
 
@@ -36,7 +38,6 @@ function Stars({ count }: { count: number }) {
   )
 }
 
-// Fix the function signature - you're returning JSX, not TestimonialsProps
 export function Testimonials({ language }: TestimonialsProps): JSX.Element {
   const title =
     language === 'en' ? 'What drivers say' : 'Was Fahrer sagen'
@@ -48,8 +49,16 @@ export function Testimonials({ language }: TestimonialsProps): JSX.Element {
     language === 'en' ? 'Google Reviews' : 'Google-Bewertungen'
   const googleText =
     language === 'en'
-      ? '4.8/5 average rating across all locations.'
-      : 'Durchschnittlich 4,8/5 Sterne über alle Standorte.'
+      ? 'See all reviews on Google.'
+      : 'Alle Bewertungen bei Google ansehen.'
+  const googleLink =
+    'https://www.google.com/maps/place/T%26A+fahrzeugaufbereitung/@51.1583557,9.6146429,128525m/data=!3m1!1e3!4m12!1m2!2m1!1sT%26A+fahrzeugaufbereitung!3m8!1s0x47a46de365677961:0xdf810e695895aa80!8m2!3d51.0083973!4d11.0327986!9m1!1b1!15sChhUJkEgZmFocnpldWdhdWZiZXJlaXR1bmeSAQhjYXJfd2FzaOABAA!16s%2Fg%2F11z03vr7th?hl=fr&entry=ttu&g_ep=EgoyMDI2MDIyNS4wIKXMDSoASAFQAw%3D%3D'
+  const items = fallbackTestimonials.map((item) => ({
+    name: item.name,
+    rating: item.rating,
+    text: language === 'en' ? item.textEn : item.textDe,
+    relativeTime: item.city,
+  }))
 
   return (
     <section className="bg-[#2f2f2f]">
@@ -66,23 +75,31 @@ export function Testimonials({ language }: TestimonialsProps): JSX.Element {
           <div className="text-xs md:text-sm text-text-muted">
             <p className="font-gothic text-text-light">{googleLabel}</p>
             <p>{googleText}</p>
+            <a
+              href={googleLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex mt-2 text-[11px] uppercase tracking-[0.16em] text-accent-teal hover:text-text-light"
+            >
+              {language === 'en' ? 'Open Google reviews' : 'Google-Bewertungen öffnen'}
+            </a>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((item) => (
+          {items.map((item) => (
             <div
-              key={item.name}
+              key={`${item.name}-${item.text.slice(0, 32)}`}
               className="flex flex-col justify-between bg-neutral-bg border border-white/10 px-5 py-6"
             >
               <div className="space-y-3">
                 <Stars count={item.rating} />
                 <p className="text-sm text-text-light leading-relaxed">
-                  {language === 'en' ? item.textEn : item.textDe}
+                  {item.text}
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-text-muted">
                 <span>{item.name}</span>
-                <span>{item.city}</span>
+                <span>{item.relativeTime}</span>
               </div>
             </div>
           ))}
